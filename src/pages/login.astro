@@ -2,6 +2,12 @@
 import AuthLayout from "../layouts/AuthLayout.astro";
 import Field from "../components/Field.astro";
 import Alert from "../components/Alert.astro";
+import { getAuthToken } from "../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (token) {
+  return Astro.redirect("/me");
+}
 ---
 
 <AuthLayout

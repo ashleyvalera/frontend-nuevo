@@ -1,6 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { LogOut, Mail, IdCard, Phone, CalendarDays, Clock } from "@lucide/astro";
+import { getAuthToken } from "../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (!token) {
+  return Astro.redirect("/login");
+}
 ---
 
 <Layout title="Mi perfil">
@@ -94,8 +100,13 @@ import { LogOut, Mail, IdCard, Phone, CalendarDays, Clock } from "@lucide/astro"
     const content = document.getElementById("content") as HTMLElement;
     const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement;
 
-    logoutBtn.addEventListener("click", () => {
-      auth.clearToken();
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await fetch("/logout", { method: "POST" });
+      } catch {
+        // Fallback to client-side clear
+        auth.clearToken();
+      }
       window.location.href = "/login";
     });
 

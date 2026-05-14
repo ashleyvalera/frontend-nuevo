@@ -1,5 +1,11 @@
-const API_URL = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
-const TOKEN_KEY = "auth_token";
+import {
+  AUTH_COOKIE_NAME,
+  getAuthTokenFromClient,
+  setAuthTokenOnClient,
+  removeAuthTokenFromClient,
+} from './cookies';
+
+const API_URL = '/api';
 
 export interface AuthUser {
   id: string;
@@ -106,23 +112,23 @@ export const api = {
 };
 
 export const auth = {
-  saveToken(token: string) {
-    localStorage.setItem(TOKEN_KEY, token);
+  getToken(): string | undefined {
+    return getAuthTokenFromClient();
   },
-  getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+  saveToken(token: string) {
+    setAuthTokenOnClient(token);
   },
   clearToken() {
-    localStorage.removeItem(TOKEN_KEY);
+    removeAuthTokenFromClient();
   },
   redirectIfAuthenticated(target = "/me") {
     if (this.getToken()) window.location.href = target;
   },
-  requireAuth(loginPath = "/login"): string | null {
+  requireAuth(loginPath = "/login"): string | undefined {
     const token = this.getToken();
     if (!token) {
       window.location.href = loginPath;
-      return null;
+      return undefined;
     }
     return token;
   },

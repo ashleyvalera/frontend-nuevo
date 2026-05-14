@@ -1,6 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { Rocket, LogIn, UserPlus } from "@lucide/astro";
+import { getAuthToken } from "../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (token) {
+  return Astro.redirect("/me");
+}
 ---
 
 <Layout title="Frontend Astro">
