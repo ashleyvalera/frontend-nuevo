@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
 import { removeAuthToken, getAuthToken } from '../lib/cookies';
 
-const API_URL = '/api';
+const BACKEND_URL = 'http://localhost:3000';
 
 async function logoutBackend(token: string) {
-  await fetch(`${API_URL}/auth/logout`, {
+  await fetch(`${BACKEND_URL}/auth/logout`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

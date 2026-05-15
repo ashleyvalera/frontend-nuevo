@@ -1,0 +1,163 @@
+---
+import AppLayout from "../../components/layout/AppLayout.astro";
+import { getAuthToken } from "../../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (!token) {
+  return Astro.redirect("/login");
+}
+
+let pagos: any[] = [];
+let prestamos: any[] = [];
+let error = '';
+
+try {
+  const [pagosRes, prestamosRes] = await Promise.all([
+    fetch('http://localhost:3000/pagos', { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch('http://localhost:3000/prestamos', { headers: { 'Authorization': `Bearer ${token}` } }),
+  ]);
+
+  pagos = await pagosRes.json();
+  if (!Array.isArray(pagos)) pagos = pagos.data || [];
+
+  const prestamosData = await prestamosRes.json();
+  prestamos = Array.isArray(prestamosData) ? prestamosData : prestamosData.data || [];
+} catch (e) {
+  error = 'Error al cargar datos';
+}
+
+const getPrestamo = (prestamoId: string) => prestamos.find((p: any) => p.id === prestamoId);
+
+const fechaFilter = Astro.url.searchParams.get('fecha') || '';
+let filtered = pagos;
+if (fechaFilter) {
+  filtered = filtered.filter((p: any) => p.fechaPago?.startsWith(fechaFilter));
+}
+
+const totalMonto = filtered.reduce((sum: number, p: any) => sum + (p.monto || 0), 0);
+const fmt = (v: number) => (v || 0).toFixed(2);
+---
+
+<AppLayout title="Pagos" user={{ email: 'Usuario' }}>
+  {/* Header */}
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">Historial de Pagos</h1>
+    <p class="text-sm text-slate-500">{pagos.length} pagos registrados</p>
+  </div>
+
+  {/* Filters */}
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 mb-6">
+    <form method="get" class="flex flex-wrap items-end gap-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1.5">Filtrar por fecha</label>
+        <input
+          type="date"
+          name="fecha"
+          value={fechaFilter}
+          class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-teal-500 focus:outline-none"
+        />
+      </div>
+      <button type="submit" class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors">
+        Filtrar
+      </button>
+      {fechaFilter && (
+        <a href="/pagos" class="px-4 py-2 text-sm text-teal-600 hover:text-teal-700 font-medium">
+          Limpiar filtro
+        </a>
+      )}
+    </form>
+  </div>
+
+  {/* Stats */}
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+      <div class="text-sm text-slate-500 mb-1">Total de Pagos</div>
+      <div class="text-2xl font-bold text-slate-900">S/ {fmt(totalMonto)}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+      <div class="text-sm text-slate-500 mb-1">Pagos Completos</div>
+      <div class="text-2xl font-bold text-slate-900 text-emerald-600">
+        {filtered.filter((p: any) => p.tipo === 'completo').length}
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+      <div class="text-sm text-slate-500 mb-1">Pagos Parciales</div>
+      <div class="text-2xl font-bold text-slate-900 text-amber-600">
+        {filtered.filter((p: any) => p.tipo === 'parcial').length}
+      </div>
+    </div>
+  </div>
+
+  {error && (
+    <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+  )}
+
+  {/* Table */}
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Préstamo</th>
+            <th>Monto</th>
+            <th>Tipo</th>
+            <th>Nota</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.length === 0 ? (
+            <tr>
+              <td colspan="5" class="text-center py-12 text-slate-500">
+                <div class="flex flex-col items-center gap-2">
+                  <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>No hay pagos registrados</span>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            filtered.map((pago: any) => {
+              const prestamo = getPrestamo(pago.prestamoId);
+              return (
+                <tr>
+                  <td>
+                    <span class="text-slate-600">
+                      {pago.fechaPago ? new Date(pago.fechaPago).toLocaleDateString('es-PE') : '—'}
+                    </span>
+                  </td>
+                  <td>
+                    {prestamo ? (
+                      <a href={`/prestamos/${prestamo.id}`} class="font-medium text-teal-600 hover:text-teal-700">
+                        Préstamo #{prestamo.id.slice(0, 8)}
+                      </a>
+                    ) : (
+                      <span class="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td>
+                    <span class="font-bold text-slate-900">S/ {fmt(pago.monto)}</span>
+                  </td>
+                  <td>
+                    <span class:list={[
+                      "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium",
+                      pago.tipo === 'completo' 
+                        ? "bg-emerald-50 text-emerald-700" 
+                        : "bg-amber-50 text-amber-700"
+                    ]}>
+                      {pago.tipo === 'completo' ? 'Completo' : 'Parcial'}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="text-slate-600 max-w-xs truncate block">{pago.nota || '—'}</span>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</AppLayout>

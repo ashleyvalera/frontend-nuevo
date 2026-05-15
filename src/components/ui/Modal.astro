@@ -1,0 +1,58 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  size?: "sm" | "md" | "lg";
+}
+
+const { id, title, size = "md" } = Astro.props;
+
+const sizes = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg"
+};
+---
+
+<div id={id} class="fixed inset-0 z-50 hidden">
+  <div class="fixed inset-0 bg-black/50 transition-opacity" data-close-modal></div>
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class:list={["relative w-full rounded-xl bg-white p-6 shadow-xl", sizes[size]]}>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-slate-900">{title}</h3>
+        <button
+          type="button"
+          data-close-modal
+          class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <slot />
+    </div>
+  </div>
+</div>
+
+<script>
+  function openModal(id: string) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeModal(id: string) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.add('hidden');
+  }
+
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const modal = (e.target as HTMLElement).closest('[id]') as HTMLElement;
+      if (modal) modal.classList.add('hidden');
+    });
+  });
+
+  (window as any).openModal = openModal;
+  (window as any).closeModal = closeModal;
+</script>

@@ -1,0 +1,189 @@
+---
+import AppLayout from "../../components/layout/AppLayout.astro";
+import { getAuthToken } from "../../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (!token) {
+  return Astro.redirect("/login");
+}
+
+let prestamos = [];
+let clientes = [];
+let error = '';
+
+const estadoFilter = Astro.url.searchParams.get('estado') || '';
+const tipoFilter = Astro.url.searchParams.get('tipo') || '';
+const clienteFilter = Astro.url.searchParams.get('clienteId') || '';
+
+try {
+  const [prestamosRes, clientesRes] = await Promise.all([
+    fetch('http://localhost:3000/prestamos', { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch('http://localhost:3000/usuarios', { headers: { 'Authorization': `Bearer ${token}` } }),
+  ]);
+  
+  prestamos = await prestamosRes.json();
+  if (!Array.isArray(prestamos)) prestamos = prestamos.data || [];
+  
+  clientes = await clientesRes.json();
+  if (!Array.isArray(clientes)) clientes = clientes.data || [];
+} catch (e) {
+  error = 'Error al cargar datos';
+}
+
+let filtered = prestamos;
+if (estadoFilter) filtered = filtered.filter((p: any) => p.estado === estadoFilter);
+if (tipoFilter) filtered = filtered.filter((p: any) => p.tipo === tipoFilter);
+if (clienteFilter) filtered = filtered.filter((p: any) => p.clienteId === clienteFilter);
+
+const getCliente = (clienteId: string) => clientes.find((c: any) => c.id === clienteId);
+
+const fmt = (v: number) => (v || 0).toFixed(2);
+
+const getBadgeClass = (estado: string) => {
+  const map: Record<string, string> = {
+    activo: 'bg-teal-50 text-teal-700',
+    pagado: 'bg-emerald-50 text-emerald-700',
+    moroso: 'bg-red-50 text-red-700',
+    cancelado: 'bg-slate-100 text-slate-600'
+  };
+  return map[estado] || 'bg-slate-100 text-slate-600';
+};
+---
+
+<AppLayout title="Préstamos" user={{ email: 'Usuario' }}>
+  {/* Header */}
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Préstamos</h1>
+      <p class="text-sm text-slate-500">{filtered.length} préstamos registrados</p>
+    </div>
+    <a
+      href="/prestamos/nuevo"
+      class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Nuevo Préstamo
+    </a>
+  </div>
+
+  {/* Filters */}
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 mb-6">
+    <form method="get" class="flex flex-wrap gap-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1.5">Estado</label>
+        <select name="estado" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-teal-500 focus:outline-none">
+          <option value="">Todos</option>
+          <option value="activo" selected={estadoFilter === 'activo'}>Activo</option>
+          <option value="moroso" selected={estadoFilter === 'moroso'}>Moroso</option>
+          <option value="pagado" selected={estadoFilter === 'pagado'}>Pagado</option>
+          <option value="cancelado" selected={estadoFilter === 'cancelado'}>Cancelado</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1.5">Tipo</label>
+        <select name="tipo" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-teal-500 focus:outline-none">
+          <option value="">Todos</option>
+          <option value="dinero" selected={tipoFilter === 'dinero'}>Dinero</option>
+          <option value="artefacto" selected={tipoFilter === 'artefacto'}>Artefacto</option>
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button type="submit" class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors">
+          Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {error && (
+    <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+  )}
+
+  {/* Table */}
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Tipo</th>
+            <th>Monto Original</th>
+            <th>Saldo</th>
+            <th>Cuota</th>
+            <th>Próxima Fecha</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.length === 0 ? (
+            <tr>
+              <td colspan="8" class="text-center py-12 text-slate-500">
+                <div class="flex flex-col items-center gap-2">
+                  <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>No hay préstamos</span>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            filtered.map((prestamo: any) => {
+              const cliente = getCliente(prestamo.clienteId);
+              return (
+                <tr>
+                  <td>
+                    <div>
+                      <div class="font-medium text-slate-900">{cliente?.nombre || '—'}</div>
+                      <div class="text-xs text-slate-500">{cliente?.documentoNumero}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class:list={[
+                      "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize",
+                      prestamo.tipo === 'artefacto' ? 'bg-indigo-50 text-indigo-700' : 'bg-violet-50 text-violet-700'
+                    ]}>
+                      {prestamo.tipo}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="font-medium text-slate-900">S/ {fmt(prestamo.montoOriginal)}</span>
+                  </td>
+                  <td>
+                    <span class="text-slate-600">S/ {fmt(prestamo.montoActual)}</span>
+                  </td>
+                  <td>
+                    <span class="text-slate-600">S/ {fmt(prestamo.cuotaMonto)}</span>
+                  </td>
+                  <td>
+                    <span class="text-slate-600">
+                      {prestamo.proximaFechaPago ? new Date(prestamo.proximaFechaPago).toLocaleDateString('es-PE') : '—'}
+                    </span>
+                  </td>
+                  <td>
+                    <span class:list={["inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium", getBadgeClass(prestamo.estado)]}>
+                      {prestamo.estado}
+                    </span>
+                  </td>
+                  <td>
+                    <a
+                      href={`/prestamos/${prestamo.id}`}
+                      class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700"
+                    >
+                      Ver Detalle
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</AppLayout>

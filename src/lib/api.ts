@@ -5,7 +5,7 @@ import {
   removeAuthTokenFromClient,
 } from './cookies';
 
-const API_URL = '/api';
+const API_URL = '';
 
 export interface AuthUser {
   id: string;

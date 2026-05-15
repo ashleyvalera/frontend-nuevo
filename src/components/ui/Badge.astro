@@ -1,0 +1,25 @@
+---
+interface Props {
+  variant?: "success" | "danger" | "warning" | "neutral" | "teal";
+  size?: "sm" | "md";
+}
+
+const { variant = "neutral", size = "md" } = Astro.props;
+
+const variants = {
+  success: "bg-emerald-100 text-emerald-700",
+  danger: "bg-red-100 text-red-700",
+  warning: "bg-amber-100 text-amber-700",
+  neutral: "bg-slate-100 text-slate-700",
+  teal: "bg-teal-100 text-teal-700"
+};
+
+const sizes = {
+  sm: "px-2 py-0.5 text-xs",
+  md: "px-2.5 py-1 text-xs"
+};
+---
+
+<span class:list={["inline-flex items-center font-medium rounded-full", variants[variant], sizes[size]]}>
+  <slot />
+</span>

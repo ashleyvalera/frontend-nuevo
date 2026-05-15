@@ -1,0 +1,102 @@
+---
+import AppLayout from "../../components/layout/AppLayout.astro";
+import { getAuthToken } from "../../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (!token) {
+  return Astro.redirect("/login");
+}
+---
+
+<AppLayout title="Clientes" user={{ email: 'Usuario' }}>
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Clientes</h1>
+      <p class="text-sm text-slate-500" id="cliente-count">Cargando...</p>
+    </div>
+    <button id="nuevo-btn" class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Nuevo Cliente
+    </button>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 mb-6">
+    <div class="flex gap-3">
+      <input type="text" id="search" placeholder="Buscar..." class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-teal-500 focus:outline-none" />
+      <button id="search-btn" class="px-5 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700">Buscar</button>
+    </div>
+  </div>
+
+  <div id="error-msg" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Documento</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="clientes-tbody">
+          <tr><td colspan="5" class="text-center py-8 text-slate-500">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</AppLayout>
+
+<script>
+  import { auth } from "../../lib/api";
+
+  const token = auth.getToken();
+  const BACKEND = 'http://localhost:3000';
+
+  async function loadClientes() {
+    try {
+      const res = await fetch(`${BACKEND}/usuarios`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      const clientes = Array.isArray(data) ? data : (data.data || []);
+      renderClientes(clientes);
+    } catch (e) {
+      document.getElementById('error-msg').textContent = 'Error al cargar: ' + e.message;
+      document.getElementById('error-msg').classList.remove('hidden');
+    }
+  }
+
+  function renderClientes(clientes) {
+    document.getElementById('cliente-count').textContent = clientes.length + ' clientes';
+    const tbody = document.getElementById('clientes-tbody');
+    if (clientes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500">No hay clientes</td></tr>';
+      return;
+    }
+    tbody.innerHTML = clientes.map(c => `
+      <tr>
+        <td><div class="flex items-center gap-3"><div class="h-10 w-10 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-semibold text-sm">${c.nombre?.charAt(0) || '?'}</div><span class="font-medium">${c.nombre || '-'}</span></div></td>
+        <td>${c.documentoTipo || ''} ${c.documentoNumero || '-'}</td>
+        <td>${c.telefono || '-'}</td>
+        <td><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${c.activo ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}">${c.activo ? 'Activo' : 'Inactivo'}</span></td>
+        <td><a href="/clientes/${c.id}" class="text-teal-600 hover:text-teal-700 text-sm font-medium">Ver</a></td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('nuevo-btn').addEventListener('click', () => window.location.href = '/clientes/nuevo');
+  document.getElementById('search-btn').addEventListener('click', () => {
+    const q = document.getElementById('search').value.toLowerCase();
+    loadClientes().then(() => {
+      const rows = document.querySelectorAll('#clientes-tbody tr');
+      rows.forEach(r => { if (!r.textContent.toLowerCase().includes(q)) r.style.display = 'none'; });
+    });
+  });
+
+  loadClientes();
+</script>

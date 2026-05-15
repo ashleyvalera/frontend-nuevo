@@ -1,0 +1,158 @@
+---
+import AppLayout from "../../components/layout/AppLayout.astro";
+import Card from "../../components/ui/Card.astro";
+import Input from "../../components/ui/Input.astro";
+import Button from "../../components/ui/Button.astro";
+import { getAuthToken } from "../../lib/cookies";
+
+const token = getAuthToken(Astro.cookies);
+if (!token) {
+  return Astro.redirect("/login");
+}
+
+const documentTypes = [
+  { value: "DNI", label: "DNI" },
+  { value: "CE", label: "Carné de Extranjería" },
+  { value: "PASAPORTE", label: "Pasaporte" },
+  { value: "RUC", label: "RUC" },
+];
+
+let error = '';
+let success = false;
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const data = {
+      nombre: formData.get("nombre"),
+      documentoTipo: formData.get("documentoTipo"),
+      documentoNumero: formData.get("documentoNumero"),
+      telefono: formData.get("telefono"),
+      direccion: formData.get("direccion"),
+      nombreNegocio: formData.get("nombreNegocio") || undefined,
+    };
+
+    const res = await fetch('http://localhost:3000/clientes', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await res.json();
+    console.log('Create client:', res.status, JSON.stringify(result));
+
+    if (res.ok) {
+      success = true;
+    } else {
+      error = `Error ${res.status}: ${result.message || result.error || JSON.stringify(result)}`;
+    }
+  } catch (e) {
+    error = 'Error: ' + e.message;
+  }
+}
+---
+
+<AppLayout title="Nuevo Cliente" user={{ email: 'Usuario' }}>
+  <div class="mb-6">
+    <a href="/clientes" class="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Volver a clientes
+    </a>
+  </div>
+
+  <div class="max-w-2xl">
+    <h1 class="text-2xl font-bold text-slate-900 mb-6">Nuevo Cliente</h1>
+
+    {success ? (
+      <Card>
+        <div class="text-center py-8">
+          <div class="mx-auto h-12 w-12 rounded-full bg-teal-100 flex items-center justify-center mb-4">
+            <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 class="text-lg font-semibold text-slate-900 mb-2">Cliente creado exitosamente</h2>
+          <div class="flex gap-3 justify-center mt-4">
+            <a href="/clientes/nuevo" class="text-teal-600 hover:text-teal-700 text-sm font-medium">
+              Crear otro
+            </a>
+            <span class="text-slate-300">|</span>
+            <a href="/clientes" class="text-teal-600 hover:text-teal-700 text-sm font-medium">
+              Ver clientes
+            </a>
+          </div>
+        </div>
+      </Card>
+    ) : (
+      <Card>
+        {error && (
+          <div class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        )}
+
+        <form method="POST" class="space-y-4">
+          <Input
+            name="nombre"
+            label="Nombre completo"
+            placeholder="Ej: Juan Pérez"
+            required
+          />
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                Tipo de documento <span class="text-red-500">*</span>
+              </label>
+              <select
+                name="documentoTipo"
+                required
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              >
+                {documentTypes.map(t => (
+                  <option value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <Input
+              name="documentoNumero"
+              label="Número de documento"
+              placeholder="Ej: 12345678"
+              required
+            />
+          </div>
+
+          <Input
+            name="telefono"
+            label="Teléfono"
+            type="tel"
+            placeholder="Ej: 987654321"
+            required
+          />
+
+          <Input
+            name="direccion"
+            label="Dirección"
+            placeholder="Ej: Av. Principal 123"
+            required
+          />
+
+          <Input
+            name="nombreNegocio"
+            label="Nombre del negocio (opcional)"
+            placeholder="Ej: Bodega Don Juan"
+          />
+
+          <div class="pt-4">
+            <Button type="submit" variant="primary">
+              Crear Cliente
+            </Button>
+          </div>
+        </form>
+      </Card>
+    )}
+  </div>
+</AppLayout>

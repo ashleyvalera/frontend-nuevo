@@ -1,52 +1,226 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import { Rocket, LogIn, UserPlus } from "@lucide/astro";
+import AppLayout from "../components/layout/AppLayout.astro";
 import { getAuthToken } from "../lib/cookies";
 
 const token = getAuthToken(Astro.cookies);
-if (token) {
-  return Astro.redirect("/me");
+if (!token) {
+  return Astro.redirect("/login");
 }
+
+let stats = null;
+let error = '';
+
+try {
+  const res = await fetch('http://localhost:3000/dashboard/resumen', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  stats = await res.json();
+} catch {
+  error = 'Error al cargar datos';
+}
+
+const fmt = (v) => (v || 0).toFixed(2);
+
+const porEstado = stats?.prestamosPorEstado || [];
+const porTipo = stats?.prestamosPorTipo || [];
+const totalEstado = porEstado.reduce((s, i) => s + i.count, 0) || 1;
+const totalTipo = porTipo.reduce((s, i) => s + i.count, 0) || 1;
+
+const getColor = (estado) => {
+  const map = {
+    activo: 'from-teal-500 to-teal-600',
+    pagado: 'from-emerald-500 to-emerald-600',
+    moroso: 'from-red-500 to-red-600',
+    cancelado: 'from-slate-400 to-slate-500'
+  };
+  return map[estado] || 'from-slate-400 to-slate-500';
+};
+
+const getLabel = (estado) => {
+  const map = {
+    activo: 'Activos',
+    pagado: 'Pagados',
+    moroso: 'Morosos',
+    cancelado: 'Cancelados'
+  };
+  return map[estado] || estado;
+};
 ---
 
-<Layout title="Frontend Astro">
-  <main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-6 py-16">
-    <div class="flex items-center gap-3">
-      <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
-        <Rocket size={24} />
-      </span>
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-          Frontend Astro
-        </h1>
-        <p class="text-sm text-slate-500">Conectado al backend NestJS</p>
+<AppLayout title="Dashboard" user={{ email: 'Usuario' }}>
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
+    <p class="text-sm text-slate-500">Resumen de tu negocio de préstamos</p>
+  </div>
+
+  {error && (
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+  )}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover animate-fade-in">
+      <div class="flex items-start justify-between mb-4">
+        <div class="p-3 rounded-xl bg-teal-50">
+          <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <span class="text-xs font-medium text-teal-600 bg-teal-50 px-2 py-1 rounded-full">Total</span>
+      </div>
+      <p class="text-sm text-slate-500 mb-1">Total Prestado</p>
+      <p class="text-2xl font-bold text-slate-900">S/ {fmt(stats?.totalPrestado)}</p>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover animate-fade-in animate-delay-1">
+      <div class="flex items-start justify-between mb-4">
+        <div class="p-3 rounded-xl bg-amber-50">
+          <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Pendiente</span>
+      </div>
+      <p class="text-sm text-slate-500 mb-1">Saldo Pendiente</p>
+      <p class="text-2xl font-bold text-slate-900">S/ {fmt(stats?.saldoPendiente)}</p>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover animate-fade-in animate-delay-2">
+      <div class="flex items-start justify-between mb-4">
+        <div class="p-3 rounded-xl bg-blue-50">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Activos</span>
+      </div>
+      <p class="text-sm text-slate-500 mb-1">Clientes Activos</p>
+      <p class="text-2xl font-bold text-slate-900">{stats?.clientesActivos || 0}</p>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover animate-fade-in animate-delay-3">
+      <div class="flex items-start justify-between mb-4">
+        <div class="p-3 rounded-xl bg-green-50">
+          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Hoy</span>
+      </div>
+      <p class="text-sm text-slate-500 mb-1">Cobros del Día</p>
+      <p class="text-2xl font-bold text-slate-900">{stats?.cobrosHoy || 0}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900">Préstamos por Estado</h3>
+          <p class="text-sm text-slate-500">{totalEstado} préstamos en total</p>
+        </div>
+      </div>
+      <div class="space-y-5">
+        {porEstado.length === 0 ? (
+          <p class="text-sm text-slate-500 text-center py-8">No hay datos disponibles</p>
+        ) : (
+          porEstado.map((item) => {
+            const percent = Math.round((item.count / totalEstado) * 100);
+            return (
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium text-slate-700">{getLabel(item.estado)}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-slate-900">{item.count}</span>
+                    <span class="text-xs text-slate-400">({percent}%)</span>
+                  </div>
+                </div>
+                <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    class={`h-full bg-gradient-to-r ${getColor(item.estado)} rounded-full transition-all duration-500`}
+                    style={`width: ${percent}%`}
+                  ></div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
 
-    <p class="mt-10 text-lg text-slate-600">
-      Demo de autenticación con JWT, perfiles de usuario y PostgreSQL.
-    </p>
-
-    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-      <a
-        href="/login"
-        class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-      >
-        <LogIn size={16} />
-        Iniciar sesión
-      </a>
-      <a
-        href="/register"
-        class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100"
-      >
-        <UserPlus size={16} />
-        Crear cuenta
-      </a>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900">Préstamos por Tipo</h3>
+          <p class="text-sm text-slate-500">{totalTipo} préstamos en total</p>
+        </div>
+      </div>
+      <div class="space-y-5">
+        {porTipo.length === 0 ? (
+          <p class="text-sm text-slate-500 text-center py-8">No hay datos disponibles</p>
+        ) : (
+          porTipo.map((item) => {
+            const percent = Math.round((item.count / totalTipo) * 100);
+            const label = item.tipo === 'artefacto' ? 'Artefactos' : 'Dinero';
+            const color = item.tipo === 'artefacto' ? 'from-indigo-500 to-indigo-600' : 'from-violet-500 to-violet-600';
+            return (
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium text-slate-700">{label}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-slate-900">{item.count}</span>
+                    <span class="text-xs text-slate-400">({percent}%)</span>
+                  </div>
+                </div>
+                <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    class={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-500`}
+                    style={`width: ${percent}%`}
+                  ></div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
-  </main>
-</Layout>
+  </div>
 
-<script>
-  import { auth } from "../lib/api";
-  auth.redirectIfAuthenticated();
-</script>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="bg-gradient-to-br from-red-50 to-white rounded-2xl p-6 border border-red-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-base font-semibold text-slate-900">Clientes Morosos</h3>
+        <span class="inline-flex items-center justify-center h-9 w-9 rounded-full bg-red-100">
+          <span class="text-lg font-bold text-red-600">{stats?.clientesMorosos || 0}</span>
+        </span>
+      </div>
+      <p class="text-sm text-slate-500">Préstamos con cuotas vencidas</p>
+    </div>
+
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-2">
+      <h3 class="text-base font-semibold text-slate-900 mb-4">Acciones Rápidas</h3>
+      <div class="flex flex-wrap gap-3">
+        <a href="/clientes/nuevo" class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nuevo Cliente
+        </a>
+        <a href="/prestamos/nuevo" class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nuevo Préstamo
+        </a>
+        <a href="/clientes" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-all">
+          Ver Clientes
+        </a>
+        <a href="/prestamos" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-all">
+          Ver Préstamos
+        </a>
+        <a href="/pagos" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-all">
+          Ver Pagos
+        </a>
+      </div>
+    </div>
+  </div>
+</AppLayout>

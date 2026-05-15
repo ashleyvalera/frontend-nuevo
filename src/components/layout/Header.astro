@@ -1,0 +1,47 @@
+---
+import { Bell, Search } from "@lucide/astro";
+
+interface Props {
+  user?: {
+    email: string;
+    nombre?: string;
+  };
+}
+
+const { user } = Astro.props;
+const userInitial = user?.email?.[0]?.toUpperCase() || "U";
+---
+
+<header class="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 flex items-center justify-between">
+  {/* Search */}
+  <div class="flex items-center gap-4 flex-1 max-w-md">
+    <div class="relative flex-1">
+      <Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input
+        type="text"
+        placeholder="Buscar..."
+        class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm placeholder-slate-400 focus:bg-white focus:border-teal-500 focus:outline-none transition-colors"
+      />
+    </div>
+  </div>
+
+  {/* Right side */}
+  <div class="flex items-center gap-4">
+    {/* Notifications */}
+    <button class="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+      <Bell size={20} />
+      <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+    </button>
+
+    {/* User */}
+    <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+      <div class="text-right hidden sm:block">
+        <div class="text-sm font-medium text-slate-900">{user?.email || "Usuario"}</div>
+        <div class="text-xs text-slate-500">Administrador</div>
+      </div>
+      <div class="h-10 w-10 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+        {userInitial}
+      </div>
+    </div>
+  </div>
+</header>

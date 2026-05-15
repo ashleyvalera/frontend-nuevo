@@ -90,7 +90,7 @@ if (token) {
     try {
       const { accessToken } = await api.login(payload);
       auth.saveToken(accessToken);
-      window.location.href = "/me";
+      window.location.href = "/";
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.messages);
